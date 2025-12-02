@@ -10,7 +10,7 @@ import {
   Dimensions,
   Platform,
   PermissionsAndroid,
-  Image,
+  Modal,
 } from 'react-native';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
@@ -24,6 +24,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const CameraScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
+  const [helpVisible, setHelpVisible] = useState(false);
   const animationRef = useRef(null);
 
   useEffect(() => {
@@ -38,7 +39,6 @@ const CameraScreen = ({ navigation }) => {
         const cameraPermission = await PermissionsAndroid.check(
           PermissionsAndroid.PERMISSIONS.CAMERA
         );
-        // For Android 13+ (API 33+), use READ_MEDIA_IMAGES instead of READ_EXTERNAL_STORAGE
         let storagePermission;
         if (Platform.Version >= 33) {
           storagePermission = await PermissionsAndroid.check(
@@ -49,17 +49,16 @@ const CameraScreen = ({ navigation }) => {
             PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
           );
         }
-        
+
         if (cameraPermission && storagePermission) {
           setHasPermission(true);
         } else {
           requestPermissions();
         }
       } else {
-        // iOS permission handling
         const cameraResult = await check(PERMISSIONS.IOS.CAMERA);
         const photoResult = await check(PERMISSIONS.IOS.PHOTO_LIBRARY);
-        
+
         if (cameraResult === RESULTS.GRANTED && photoResult === RESULTS.GRANTED) {
           setHasPermission(true);
         } else {
@@ -74,9 +73,8 @@ const CameraScreen = ({ navigation }) => {
   const requestPermissions = async () => {
     try {
       if (Platform.OS === 'android') {
-        // For Android 13+ (API 33+), request different permissions
         let permissionsToRequest = [PermissionsAndroid.PERMISSIONS.CAMERA];
-        
+
         if (Platform.Version >= 33) {
           permissionsToRequest.push(PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES);
         } else {
@@ -85,15 +83,15 @@ const CameraScreen = ({ navigation }) => {
             PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
           );
         }
-        
+
         const granted = await PermissionsAndroid.requestMultiple(permissionsToRequest);
 
         const allPermissionsGranted = Object.values(granted).every(
-          (permission) => permission === PermissionsAndroid.RESULTS.GRANTED
+          permission => permission === PermissionsAndroid.RESULTS.GRANTED
         );
 
         setHasPermission(allPermissionsGranted);
-        
+
         if (!allPermissionsGranted) {
           Alert.alert(
             'Permissions Required',
@@ -102,13 +100,13 @@ const CameraScreen = ({ navigation }) => {
           );
         }
       } else {
-        // iOS permission requests
         const cameraResult = await request(PERMISSIONS.IOS.CAMERA);
         const photoResult = await request(PERMISSIONS.IOS.PHOTO_LIBRARY);
-        
-        const granted = cameraResult === RESULTS.GRANTED && photoResult === RESULTS.GRANTED;
+
+        const granted =
+          cameraResult === RESULTS.GRANTED && photoResult === RESULTS.GRANTED;
         setHasPermission(granted);
-        
+
         if (!granted) {
           Alert.alert(
             'Permissions Required',
@@ -129,8 +127,7 @@ const CameraScreen = ({ navigation }) => {
 
     if (response.assets && response.assets.length > 0) {
       const asset = response.assets[0];
-      
-      // Navigate to detection results with the image
+
       navigation.navigate('DetectionResults', {
         imageUri: asset.uri,
         imagePath: asset.uri,
@@ -178,137 +175,46 @@ const CameraScreen = ({ navigation }) => {
     launchImageLibrary(options, handleImagePicked);
   };
 
-  const showImageSourceAlert = () => {
-    Alert.alert(
-      'Select Image Source',
-      'Choose how you want to capture or select the leaf image',
-      [
-        {
-          text: 'Camera',
-          onPress: openCamera,
-          style: 'default',
-        },
-        {
-          text: 'Gallery',
-          onPress: openImageLibrary,
-          style: 'default',
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ],
-      { cancelable: true }
-    );
-  };
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primaryDark} />
-      
+
       {/* Header */}
       <LinearGradient
         colors={[colors.primary, colors.primaryVariant]}
         style={styles.header}
       >
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.8}
-        >
-          <Icon name="arrow-back" size={24} color={colors.textOnPrimary} />
-        </TouchableOpacity>
-        
+  style={styles.backButton}
+  onPress={() => navigation.goBack()}
+  activeOpacity={0.8}
+>
+  <Text style={styles.backEmoji}>{'✕'}</Text>
+</TouchableOpacity>
+
+
         <Text style={styles.headerTitle}>Capture Leaf</Text>
-        
+
         <View style={styles.headerRight} />
       </LinearGradient>
 
       {/* Main Content */}
       <View style={styles.content}>
-  {/* Instruction Section */}
-  <Animatable.View 
-    animation="fadeInUp"
-    delay={300}
-    duration={800}
-    style={styles.instructionSection}
-  >
-    <View style={styles.instructionIcon}>
-      <Icon name="camera-alt" size={56} color="#2E7D32" />
-    </View>
+        {/* Instruction Section */}
+        <Animatable.View
+          animation="fadeInUp"
+          delay={300}
+          duration={800}
+          style={styles.instructionSection}
+        >
+          <View style={styles.instructionIcon}>
+            <Text style={styles.instructionEmoji}>🌿</Text>
+          </View>
 
-    {/* <View style={styles.instructionIcon}>
-  <Image
-    source={leafLogo}
-    style={{ width: 64, height: 64 }}
-    resizeMode="contain"
-  />
-</View> */}
-
-    
-    <Text style={styles.instructionTitle}>
-      🌿 Ready to Identify Your Plant Leaf?
-    </Text>
-    
-    <Text style={styles.instructionText}>
-      For the best results, please ensure your leaf image has:
-    </Text>
-    
-    <View style={styles.tipsList}>
-      <View style={styles.tipItem}>
-        <Icon name="check-circle" size={20} color={colors.success} />
-        <Text style={styles.tipText}>💡 Good lighting and clear visibility</Text>
-      </View>
-      
-      <View style={styles.tipItem}>
-        <Icon name="check-circle" size={20} color={colors.success} />
-        <Text style={styles.tipText}>📸 Leaf fills most of the image frame</Text>
-      </View>
-      
-      <View style={styles.tipItem}>
-        <Icon name="check-circle" size={20} color={colors.success} />
-        <Text style={styles.tipText}>🌱 Minimal background distractions</Text>
-      </View>
-      
-      <View style={styles.tipItem}>
-        <Icon name="check-circle" size={20} color={colors.success} />
-        <Text style={styles.tipText}>🔍 Leaf is in focus and not blurry</Text>
-      </View>
-    </View>
-  </Animatable.View>
-
-  {/* Supported Plants Preview */}
-  <Animatable.View
-    animation="fadeInUp"
-    delay={600}
-    duration={800}
-    style={styles.plantsPreview}
-  >
-    <Text style={styles.previewTitle}>🌱 Detectable Plants</Text>
-    
-    <View style={styles.plantsRow}>
-      <View style={styles.plantPreviewCard}>
-        <View style={[styles.plantPreviewIcon, { backgroundColor: colors.baelGreen }]}>
-          <Text style={styles.plantPreviewEmoji}>🍃</Text>
-        </View>
-        <Text style={styles.plantPreviewName}>Bael</Text>
-      </View>
-      
-      <View style={styles.plantPreviewCard}>
-        <View style={[styles.plantPreviewIcon, { backgroundColor: colors.betelGreen }]}>
-          <Text style={styles.plantPreviewEmoji}>💚</Text>
-        </View>
-        <Text style={styles.plantPreviewName}>Betel</Text>
-      </View>
-      
-      <View style={styles.plantPreviewCard}>
-        <View style={[styles.plantPreviewIcon, { backgroundColor: colors.crownFlower }]}>
-          <Text style={styles.plantPreviewEmoji}>🌸</Text>
-        </View>
-        <Text style={styles.plantPreviewName}>Crown Flower</Text>
-      </View>
-    </View>
-  </Animatable.View>
+          <Text style={styles.instructionTitle}>
+            🌿 Ready to Identify Your Plant Leaf?
+          </Text>
+        </Animatable.View>
       </View>
 
       {/* Bottom Action Buttons */}
@@ -338,7 +244,7 @@ const CameraScreen = ({ navigation }) => {
                 <Text style={styles.primaryActionText}>Take Photo</Text>
               </LinearGradient>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={styles.secondaryActionButton}
               onPress={openImageLibrary}
@@ -347,10 +253,10 @@ const CameraScreen = ({ navigation }) => {
               <Icon name="photo-library" size={24} color={colors.primary} />
               <Text style={styles.secondaryActionText}>Choose from Gallery</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={styles.helpButton}
-              onPress={() => navigation.navigate('PlantLibrary')}
+              onPress={() => setHelpVisible(true)}
               activeOpacity={0.8}
             >
               <Icon name="help-outline" size={20} color={colors.secondary} />
@@ -359,6 +265,53 @@ const CameraScreen = ({ navigation }) => {
           </>
         )}
       </Animatable.View>
+
+      {/* Help Modal */}
+      <Modal
+        visible={helpVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setHelpVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Tips for Best Results</Text>
+            <Text style={styles.modalSubtitle}>
+              For the best results, please ensure your leaf image has:
+            </Text>
+
+            <View style={styles.tipsList}>
+              <View style={styles.tipItem}>
+                <Icon name="check-circle" size={20} color={colors.success} />
+                <Text style={styles.tipText}>💡 Good lighting and clear visibility</Text>
+              </View>
+
+              <View style={styles.tipItem}>
+                <Icon name="check-circle" size={20} color={colors.success} />
+                <Text style={styles.tipText}>📸 Leaf fills most of the image frame</Text>
+              </View>
+
+              <View style={styles.tipItem}>
+                <Icon name="check-circle" size={20} color={colors.success} />
+                <Text style={styles.tipText}>🌱 Minimal background distractions</Text>
+              </View>
+
+              <View style={styles.tipItem}>
+                <Icon name="check-circle" size={20} color={colors.success} />
+                <Text style={styles.tipText}>🔍 Leaf is in focus and not blurry</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setHelpVisible(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalCloseText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -382,10 +335,17 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   backButton: {
-    padding: spacing.sm,
-    borderRadius: borderRadius.round,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
+  padding: spacing.sm,
+  borderRadius: 30,
+  backgroundColor: 'rgba(255, 255, 255, 0.35)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  shadowColor: '#000',
+  shadowOpacity: 0.15,
+  shadowOffset: { width: 0, height: 2 },
+  shadowRadius: 3,
+  elevation: 3,
+},
   headerTitle: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.semiBold,
@@ -403,102 +363,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xl,
   },
-  // instructionIcon: {
-  //   width: 100,
-  //   height: 100,
-  //   borderRadius: 50,
-  //   backgroundColor: colors.primaryLight,
-  //   justifyContent: 'center',
-  //   alignItems: 'center',
-  //   marginBottom: spacing.lg,
-  // },
   instructionIcon: {
-  width: 120,
-  height: 120,
-  borderRadius: 60,
-  backgroundColor: '#E8F5E9',       // very light green
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginBottom: spacing.lg,
-  borderWidth: 3,
-  borderColor: colors.primary,      // nice green border
-},
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    borderWidth: 3,
+    borderColor: colors.primary,
+  },
+  instructionEmoji: {
+    fontSize: 56,
+    textAlign: 'center',
+  },
   instructionTitle: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: spacing.md,
-  },
-  instructionText: {
-    fontSize: fontSize.md,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-    lineHeight: 24,
-  },
-  tipsList: {
-    alignSelf: 'stretch',
-  },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  tipText: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginLeft: spacing.sm,
-    flex: 1,
-    lineHeight: 20,
-  },
-  plantsPreview: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    elevation: 2,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  previewTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semiBold,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-  },
-  plantsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  plantPreviewCard: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  plantPreviewIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  plantPreviewEmoji: {
-    fontSize: fontSize.lg,
-  },
-  plantPreviewName: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  plantPreviewAccuracy: {
-    fontSize: fontSize.xs,
-    color: colors.success,
-    fontWeight: fontWeight.semiBold,
   },
   bottomActions: {
     backgroundColor: colors.surface,
@@ -568,6 +453,62 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     marginLeft: spacing.xs,
     textDecorationLine: 'underline',
+  },
+  tipsList: {
+    alignSelf: 'stretch',
+    marginTop: spacing.md,
+  },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  tipText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginLeft: spacing.sm,
+    flex: 1,
+    lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  modalCloseButton: {
+    marginTop: spacing.lg,
+    alignSelf: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.lg,
+  },
+  modalCloseText: {
+    fontSize: fontSize.md,
+    color: colors.textOnPrimary,
+    fontWeight: fontWeight.semiBold,
   },
 });
 
